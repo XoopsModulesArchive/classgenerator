@@ -1,0 +1,293 @@
+<?php
+// <{$table_id}>.php,v 1
+//  ---------------------------------------------------------------- //
+// Author: Bruno Barthez	                                           //
+// ----------------------------------------------------------------- //
+
+require_once XOOPS_ROOT_PATH."/kernel/object.php";
+/**
+* <{$table_id}> class.  
+* $this class is responsible for providing data access mechanisms to the data source 
+* of XOOPS user class objects.
+*/
+
+
+class <{$table_id}> extends XoopsObject
+{ 
+	var $db;
+
+// constructor
+	function <{$table_id}> ($id=null)
+	{
+		$this->db = XoopsDatabaseFactory::getDatabaseConnection();
+<{section name=field loop=$fields}>
+		$this->initVar("<{$fields[field].field_name}>",<{$fields[field].field_type}>);
+<{/section}>
+		if ( !empty($id) ) {
+			if ( is_array($id) ) {
+				$this->assignVars($id);
+			} else {
+<{if $typeformat_key eq "int" }>
+					$this->load(intval($id));
+<{else}>
+					$this->load($id);
+<{/if}>
+			}
+		} else {
+			$this->setNew();
+		}
+		
+	}
+
+	function load($id)
+	{
+<{if $typeformat_key eq "int" }>
+		$sql = 'SELECT * FROM '.$this->db->prefix("<{$table_id}>").' WHERE <{$primary_id}>='.$id;
+<{else}>
+		$sql = 'SELECT * FROM '.$this->db->prefix("<{$table_id}>").' WHERE <{$primary_id}>='.$this->db->quoteString($id);
+<{/if}>
+		$myrow = $this->db->fetchArray($this->db->query($sql));
+		$this->assignVars($myrow);
+		if (!$myrow) {
+			$this->setNew();
+		}
+	}
+
+	function getAll<{$table_id}>s($criteria=array(), $asobject=false, $sort="<{$primary_id}>", $order="ASC", $limit=0, $start=0)
+	{
+		$db = XoopsDatabaseFactory::getDatabaseConnection();
+		$ret = array();
+		$where_query = "";
+		if ( is_array($criteria) && count($criteria) > 0 ) {
+			$where_query = " WHERE";
+			foreach ( $criteria as $c ) {
+				$where_query .= " $c AND";
+			}
+			$where_query = substr($where_query, 0, -4);
+		} elseif ( !is_array($criteria) && $criteria) {
+			$where_query = " WHERE ".$criteria;
+		}
+		if ( !$asobject ) {
+			$sql = "SELECT <{$primary_id}> FROM ".$db->prefix("<{$table_id}>")."$where_query ORDER BY $sort $order";
+			$result = $db->query($sql,$limit,$start);
+			while ( $myrow = $db->fetchArray($result) ) {
+				$ret[] = $myrow['<{$table_id}>_id'];
+			}
+		} else {
+			$sql = "SELECT * FROM ".$db->prefix("<{$table_id}>")."$where_query ORDER BY $sort $order";
+			$result = $db->query($sql,$limit,$start);
+			while ( $myrow = $db->fetchArray($result) ) {
+				$ret[] = new <{$table_id}> ($myrow);
+			}
+		}
+		return $ret;
+	}
+}
+// -------------------------------------------------------------------------
+// ------------------<{$table_id}> user handler class -------------------
+// -------------------------------------------------------------------------
+/**
+* <{$table_id}>handler class.  
+* This class provides simple mecanisme for <{$table_id}> object
+*/
+
+class Xoops<{$table_id}>Handler extends XoopsObjectHandler
+{
+
+	/**
+	* create a new <{$table_id}>
+	* 
+	* @param bool $isNew flag the new objects as "new"?
+	* @return object <{$table_id}>
+	*/
+	function &create($isNew = true)	{
+		$<{$table_id}> = new <{$table_id}>();
+		if ($isNew) {
+			$<{$table_id}>->setNew();
+		}
+		return $<{$table_id}>;
+	}
+
+	/**
+	* retrieve a <{$table_id}>
+	* 
+	* @param int $id of the <{$table_id}>
+	* @return mixed reference to the {@link <{$table_id}>} object, FALSE if failed
+	*/
+	function &get($id)	{
+<{if $fields[field].field_typeformat eq "%u" }>
+		if (intval($id) > 0) {
+<{/if}>
+			$sql = 'SELECT * FROM '.$this->db->prefix('<{$table_id}>').' WHERE <{$primary_id}>='.$id;
+			if (!$result = $this->db->query($sql)) {
+				return false;
+			}
+			$numrows = $this->db->getRowsNum($result);
+			if ($numrows == 1) {
+				$<{$table_id}> = new <{$table_id}>();
+				$<{$table_id}>->assignVars($this->db->fetchArray($result));
+				return $<{$table_id}>;
+			}
+		<{if $fields[field].field_typeformat eq "%u" }>
+		}
+		<{/if}>
+		return false;
+	}
+
+/**
+* insert a new <{$table_id}> in the database
+* 
+* @param object $<{$table_id}> reference to the {@link <{$table_id}>} object
+* @param bool $force
+* @return bool FALSE if failed, TRUE if already present and unchanged or successful
+*/
+	function insert(XoopsObject $<{$table_id}>, $force = false) {
+		Global $xoopsConfig;
+		if (get_class($<{$table_id}>) != '<{$table_id}>') {
+				return false;
+		}
+		if (!$<{$table_id}>->isDirty()) {
+				return true;
+		}
+		if (!$<{$table_id}>->cleanVars()) {
+				return false;
+		}
+		foreach ($<{$table_id}>->cleanVars as $k => $v) {
+				${$k} = $v;
+		}
+		$now = "date_add(now(), interval ".$xoopsConfig['server_TZ']." hour)";
+		if ($<{$table_id}>->isNew()) {
+			// ajout/modification d'un <{$table_id}>
+			$<{$table_id}> = new <{$table_id}>();
+			$format = "INSERT INTO %s (<{section name=field loop=$fields}><{if not $smarty.section.field.first}>, <{/if}><{$fields[field].field_name}><{/section }>)";
+			$format .= "VALUES (<{section name=field loop=$fields}><{if not $smarty.section.field.first}>, <{/if}><{$fields[field].field_typeformat}><{/section }>)";
+			$sql = sprintf($format , 
+			$this->db->prefix('<{$table_id}>'), 
+			<{section name=field loop=$fields}><{if not $smarty.section.field.first}>,<{/if}><{$fields[field].data}>
+			<{/section}>);
+			$force = true;
+		} else {
+			$format = "UPDATE %s SET ";
+			$format .="<{section name=field loop=$fields}><{if not $smarty.section.field.first}>, <{/if}><{$fields[field].field_name}>=<{$fields[field].field_typeformat}><{/section }>";
+			$format .=" WHERE <{$primary_id}> = %u";
+			$sql = sprintf($format, $this->db->prefix('<{$table_id}>'),
+			<{section name=field loop=$fields}><{if not $smarty.section.field.first}>,<{/if}><{$fields[field].data}>
+			<{/section}>, $<{$primary_id}>);
+		}
+		if (false !== $force) {
+			$result = $this->db->queryF($sql);
+		} else {
+			$result = $this->db->query($sql);
+		}
+		if (!$result) {
+			return false;
+		}
+		if (empty($<{$primary_id}>)) {
+			$<{$primary_id}> = $this->db->getInsertId();
+		}
+		$<{$table_id}>->assignVar('<{$primary_id}>', $<{$primary_id}>);
+		return true;
+	}
+
+	/**
+	 * delete a <{$table_id}> from the database
+	 * 
+	 * @param object $<{$table_id}> reference to the <{$table_id}> to delete
+	 * @param bool $force
+	 * @return bool FALSE if failed.
+	 */
+	function delete(XoopsObject $<{$table_id}>, $force = false)
+	{
+		if (get_class($<{$table_id}>) != '<{$table_id}>') {
+			return false;
+		}
+		$sql = sprintf("DELETE FROM %s WHERE <{$primary_id}> = %u", $this->db->prefix("<{$table_id}>"), $<{$table_id}>->getVar('<{$primary_id}>'));
+		if (false !== $force) {
+			$result = $this->db->queryF($sql);
+		} else {
+			$result = $this->db->query($sql);
+		}
+		if (!$result) {
+			return false;
+		}
+		return true;
+	}
+
+	/**
+	* retrieve <{$table_id}>s from the database
+	* 
+	* @param object $criteria {@link CriteriaElement} conditions to be met
+	* @param bool $id_as_key use the UID as key for the array?
+	* @return array array of {@link <{$table_id}>} objects
+	*/
+	function &getObjects($criteria = null, $id_as_key = false)
+	{
+		$ret = array();
+		$limit = $start = 0;
+		$sql = 'SELECT * FROM '.$this->db->prefix('<{$table_id}>');
+		if (isset($criteria) && is_subclass_of($criteria, 'criteriaelement')) {
+			$sql .= ' '.$criteria->renderWhere();
+		if ($criteria->getSort() != '') {
+			$sql .= ' ORDER BY '.$criteria->getSort().' '.$criteria->getOrder();
+		}
+		$limit = $criteria->getLimit();
+		$start = $criteria->getStart();
+		}
+		$result = $this->db->query($sql, $limit, $start);
+		if (!$result) {
+			return $ret;
+		}
+		while (false !== ($myrow = $this->db->fetchArray($result))) {
+			$<{$table_id}> = new <{$table_id}>();
+			$<{$table_id}>->assignVars($myrow);
+			if (!$id_as_key) {
+				$ret[] =& $<{$table_id}>;
+			} else {
+				$ret[$myrow['<{$primary_id}>']] =& $<{$table_id}>;
+			}
+			unset($<{$table_id}>);
+		}
+		return $ret;
+	}
+
+	/**
+	* count <{$table_id}>s matching a condition
+	* 
+	* @param object $criteria {@link CriteriaElement} to match
+	* @return int count of <{$table_id}>s
+	*/
+	function getCount($criteria = null)
+	{
+		$sql = 'SELECT COUNT(*) FROM '.$this->db->prefix('<{$table_id}>');
+		if (isset($criteria) && is_subclass_of($criteria, 'criteriaelement')) {
+			$sql .= ' '.$criteria->renderWhere();
+		}
+		$result = $this->db->query($sql);
+		if (!$result) {
+			return 0;
+		}
+		list($count) = $this->db->fetchRow($result);
+		return $count;
+	} 
+
+	/**
+	* delete <{$table_id}>s matching a set of conditions
+	* 
+	* @param object $criteria {@link CriteriaElement} 
+	* @return bool FALSE if deletion failed
+	*/
+	function deleteAll($criteria = null)
+	{
+		$sql = 'DELETE FROM '.$this->db->prefix('<{$table_id}>');
+		if (isset($criteria) && is_subclass_of($criteria, 'criteriaelement')) {
+			$sql .= ' '.$criteria->renderWhere();
+		}
+		if (!$result = $this->db->query($sql)) {
+			return false;
+		}
+		return true;
+	}
+}
+
+
+?>

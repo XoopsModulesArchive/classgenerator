@@ -1,0 +1,5 @@
+Class generator est un générateur très simple de class s'appuyant sur les tables de Base de données déjà créé. Il s'utilise dans la partie administrateur. Son objectif est de générer un fichier sur une table DB afin d'en manipuler les elements implantant ainsi un couche d'acces au données.
+Chaque fichier généré contient 2 classes, la première (extends XoopsObject) permet de manipuler des instances et la seconde (extends XoopsObjectHandler) permet en autre de créer, modifier et lister les instances selon des criteres de selection.
+Le modèle est celui couramment utilisé dans le kernel de xoops.
+Class generator s'appuie simplement sur un template smarty qui est personnalisable.
+
